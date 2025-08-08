@@ -713,69 +713,48 @@ EspTab:CreateToggle({
    end
 })
 
-PlayerTab:CreateToggle({
-   Name = "Infinity Jump",
-   CurrentValue = false,
-   Flag = "InfJump",
-   Callback = function(Value)
-        getgenv().InfiniteJump = Value
-        
-        if Value then
-            UserInputService.JumpRequest:Connect(function()
-                if getgenv().InfiniteJump and Character and Humanoid then
-                    Humanoid:ChangeState("Jumping")
-                end
-            end)
-            Rayfield:Notify({
-                Title = "Infinite Jump",
-                Content = "Enabled infinite jump",
-                Duration = 2,
-                Image = 4483362458
-            })
-        end
+-- Player Tab Functions with persistence after reset/teleport
+
+-- Walk Speed
+local ValueSpeed = 16
+local OldSpeed = Game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
+
+local function updateSpeed()
+    if ActiveSpeedBoost and Character and Humanoid then
+        Humanoid.WalkSpeed = ValueSpeed
     end
+end
+
+local Slider = PlayerTab:CreateSlider({
+   Name = "Player Speed",
+   Range = {0, 100},
+   Increment = 1,
+   Suffix = "Speeds",
+   CurrentValue = 16,
+   Flag = "Slider1",
+   Callback = function(Value)
+        ValueSpeed = Value
+        updateSpeed()
+   end
 })
 
-PlayerTab:CreateToggle({
-   Name = "Noclip",
+local ActiveSpeedBoost = false
+local PlayerActiveModifyingSpeedToggle = PlayerTab:CreateToggle({
+   Name = "Active Modifying Player Speed",
    CurrentValue = false,
-   Flag = "Noclip",
+   Flag = "ButtonSpeed",
    Callback = function(Value)
-        getgenv().Noclip = Value
-        
-        if not Value then
-            if Character then
-                for _, part in pairs(Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
-                end
-            end
-            return
-        end
-        
-        Rayfield:Notify({
-            Title = "Noclip",
-            Content = "Enabled noclip",
-            Duration = 2,
-            Image = 4483362458
-        })
-        
-        local noclipLoop
-        noclipLoop = game:GetService("RunService").Stepped:Connect(function()
-            if not getgenv().Noclip or not Character then
-                noclipLoop:Disconnect()
-                return
-            end
-            
-            for _, part in pairs(Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    end
+        ActiveSpeedBoost = Value
+        updateSpeed()
+   end
 })
+
+-- Jump Power
+local function updateJumpPower()
+    if Character and Humanoid then
+        Humanoid.JumpPower = getgenv().Jumppower or 50
+    end
+end
 
 local JumpPowerSlider = PlayerTab:CreateSlider({
    Name = "JumpPower",
@@ -785,12 +764,111 @@ local JumpPowerSlider = PlayerTab:CreateSlider({
    CurrentValue = 50,
    Flag = "JumpPower",
    Callback = function(Value)
-        if Humanoid then
-            Humanoid.JumpPower = Value
-            getgenv().Jumppower = Value
-        end
-    end
+        getgenv().Jumppower = Value
+        updateJumpPower()
+   end
 })
+
+-- Infinite Jump
+local function setupInfiniteJump()
+    if getgenv().InfiniteJump and Character and Humanoid then
+        UserInputService.JumpRequest:Connect(function()
+            if getgenv().InfiniteJump and Character and Humanoid then
+                Humanoid:ChangeState("Jumping")
+            end
+        end)
+    end
+end
+
+PlayerTab:CreateToggle({
+   Name = "Infinity Jump",
+   CurrentValue = false,
+   Flag = "InfJump",
+   Callback = function(Value)
+        getgenv().InfiniteJump = Value
+        setupInfiniteJump()
+   end
+})
+
+-- Noclip
+local noclipLoop
+local function setupNoclip()
+    if noclipLoop then
+        noclipLoop:Disconnect()
+    end
+    
+    if not getgenv().Noclip or not Character then return end
+    
+    noclipLoop = game:GetService("RunService").Stepped:Connect(function()
+        if not getgenv().Noclip or not Character then
+            noclipLoop:Disconnect()
+            return
+        end
+        
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+
+PlayerTab:CreateToggle({
+   Name = "Noclip",
+   CurrentValue = false,
+   Flag = "Noclip",
+   Callback = function(Value)
+        getgenv().Noclip = Value
+        setupNoclip()
+   end
+})
+
+-- Godmode (Improved Version)
+local invincibleHealth = 1e9 -- A very high health value to simulate invincibility
+local godmodeConnections = {}
+
+local function setupGodmode()
+    -- Disconnect previous connections if any
+    if godmodeConnections[LocalPlayer] then
+        for _, conn in pairs(godmodeConnections[LocalPlayer]) do
+            conn:Disconnect()
+        end
+        godmodeConnections[LocalPlayer] = nil
+    end
+
+    if not getgenv().enableGodmode or not Character then return end
+
+    local function onCharacterAdded(character)
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.MaxHealth = invincibleHealth
+        humanoid.Health = invincibleHealth
+
+        -- Store connections for this player
+        godmodeConnections[LocalPlayer] = {}
+
+        -- Prevent health from changing
+        table.insert(godmodeConnections[LocalPlayer], humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if humanoid.Health < invincibleHealth then
+                humanoid.Health = invincibleHealth
+            end
+        end))
+
+        -- Also monitor for damage
+        table.insert(godmodeConnections[LocalPlayer], humanoid.HealthChanged:Connect(function()
+            if humanoid.Health < invincibleHealth then
+                humanoid.Health = invincibleHealth
+            end
+        end))
+    end
+
+    -- Apply immediately if character exists
+    if Character then
+        onCharacterAdded(Character)
+    end
+
+    -- Connect for future characters
+    table.insert(godmodeConnections[LocalPlayer], LocalPlayer.CharacterAdded:Connect(onCharacterAdded))
+end
 
 PlayerTab:CreateToggle({
    Name = "Godmode",
@@ -798,45 +876,51 @@ PlayerTab:CreateToggle({
    Flag = "Godmode",
    Callback = function(Value)
         getgenv().enableGodmode = Value
-        
-        local godcon
-        local function UpdateGod()
-            if godcon then
-                godcon:Disconnect()
-                godcon = nil
-            end
-            
-            if Humanoid and getgenv().enableGodmode then
-                godcon = Humanoid.HealthChanged:Connect(function()
-                    if Humanoid.Health < Humanoid.MaxHealth then
-                        Humanoid.Health = Humanoid.MaxHealth
-                    end
-                end)
-            end
-        end
+        setupGodmode()
         
         if Value then
             Rayfield:Notify({
-                Title = "Godmode",
-                Content = "Enabled godmode",
-                Duration = 2,
+                Title = "Godmode Activated",
+                Content = "You are now invincible!",
+                Duration = 3,
                 Image = 4483362458
             })
-            UpdateGod()
-            
-            LocalPlayer.CharacterAdded:Connect(function(newChar)
-                Character = newChar
-                Humanoid = Character:WaitForChildOfClass("Humanoid")
-                UpdateGod()
-            end)
         else
-            if godcon then
-                godcon:Disconnect()
-                godcon = nil
-            end
+            Rayfield:Notify({
+                Title = "Godmode Deactivated",
+                Content = "You are no longer invincible",
+                Duration = 3,
+                Image = 7733658504
+            })
         end
-    end
+   end
 })
+
+-- Character change handlers
+local function onCharacterAdded(newChar)
+    Character = newChar
+    Humanoid = Character:WaitForChildOfClass("Humanoid")
+    RootPart = Humanoid.RootPart or Character:WaitForChild("HumanoidRootPart")
+    
+    -- Reapply all settings when character changes
+    updateSpeed()
+    updateJumpPower()
+    setupInfiniteJump()
+    setupNoclip()
+    setupGodmode()
+end
+
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+-- Also handle respawns
+if Humanoid then
+    Humanoid.Died:Connect(function()
+        task.wait(3) -- Wait for respawn
+        if LocalPlayer.Character then
+            onCharacterAdded(LocalPlayer.Character)
+        end
+    end)
+end
 
 TeleportTab:CreateButton({
    Name = "Teleport To Map",
