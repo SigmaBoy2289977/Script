@@ -804,14 +804,35 @@ PlayerTab:CreateToggle({
    end
 })
 
--- Noclip
+local noclipLoop
+local function setupNoclip()
+    if noclipLoop then
+        noclipLoop:Disconnect()
+    end
+    
+    if not getgenv().Noclip or not Character then return end
+    
+    noclipLoop = game:GetService("RunService").Stepped:Connect(function()
+        if not getgenv().Noclip or not Character then
+            noclipLoop:Disconnect()
+            return
+        end
+        
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+
 PlayerTab:CreateToggle({
    Name = "Noclip",
    CurrentValue = false,
    Flag = "Noclip",
    Callback = function(Value)
-        getgenv().PlayerSettings.Noclip = Value
-        setupNoclip() -- Используем существующую функцию
+        getgenv().Noclip = Value
+        setupNoclip()
    end
 })
 
