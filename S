@@ -836,14 +836,76 @@ PlayerTab:CreateToggle({
    end
 })
 
--- Godmode
+-- Godmode (Improved Version)
+local invincibleHealth = 1e9 -- A very high health value to simulate invincibility
+local godmodeConnections = {}
+
+local function setupGodmode()
+    -- Disconnect previous connections if any
+    if godmodeConnections[LocalPlayer] then
+        for _, conn in pairs(godmodeConnections[LocalPlayer]) do
+            conn:Disconnect()
+        end
+        godmodeConnections[LocalPlayer] = nil
+    end
+
+    if not getgenv().enableGodmode or not Character then return end
+
+    local function onCharacterAdded(character)
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.MaxHealth = invincibleHealth
+        humanoid.Health = invincibleHealth
+
+        -- Store connections for this player
+        godmodeConnections[LocalPlayer] = {}
+
+        -- Prevent health from changing
+        table.insert(godmodeConnections[LocalPlayer], humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if humanoid.Health < invincibleHealth then
+                humanoid.Health = invincibleHealth
+            end
+        end))
+
+        -- Also monitor for damage
+        table.insert(godmodeConnections[LocalPlayer], humanoid.HealthChanged:Connect(function()
+            if humanoid.Health < invincibleHealth then
+                humanoid.Health = invincibleHealth
+            end
+        end))
+    end
+
+    -- Apply immediately if character exists
+    if Character then
+        onCharacterAdded(Character)
+    end
+
+    -- Connect for future characters
+    table.insert(godmodeConnections[LocalPlayer], LocalPlayer.CharacterAdded:Connect(onCharacterAdded))
+end
+
 PlayerTab:CreateToggle({
    Name = "Godmode",
    CurrentValue = false,
    Flag = "Godmode",
    Callback = function(Value)
-        getgenv().PlayerSettings.Godmode = Value
-        setupGodmode() -- Используем существующую функцию
+        getgenv().enableGodmode = Value
+        setupGodmode()
+        
+        if Value then
+            Rayfield:Notify({
+                Title = "Godmode Activated",
+                Content = "You are now invincible!",
+                Duration = 3,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Godmode Deactivated",
+                Content = "You are no longer invincible",
+                Duration = 3,
+                Image = 7733658504
+            })
+        end
    end
 })
 
