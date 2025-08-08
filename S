@@ -1184,7 +1184,7 @@ local function SkidFling(TargetPlayer)
 end
 
 MiscTab:CreateButton({
-   Name = "Fling Murderer",
+   Name = "Fling Murderer(Touch Fling Needed!) ",
    Callback = function()
         local Murderer = nil
         for plr, role in getRoles() do
@@ -1214,7 +1214,7 @@ MiscTab:CreateButton({
 })
 
 MiscTab:CreateButton({
-   Name = "Fling Sheriff/Hero",
+   Name = "Fling Sheriff/Hero(Touch Fling Needed!)",
    Callback = function()
         local Target = nil
         for plr, role in getRoles() do
@@ -1447,3 +1447,156 @@ EspTab:CreateToggle({
     end
 })
 
+local Toggle = MiscTab:CreateToggle({
+   Name = "Touch Fling",
+   CurrentValue = false,
+   Flag = "Toggle22211", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        -- Проверяем, не существует ли уже флинг-скрипта
+        if not _G.TouchFlingScript then
+            -- Создаем новый скрипт для Touch Fling
+            _G.TouchFlingScript = true
+            
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local RunService = game:GetService("RunService")
+            local Players = game:GetService("Players")
+            local UserInputService = game:GetService("UserInputService")
+            
+            local hiddenfling = false
+            local touchStarted = false
+            local touchPosition = Vector2.new(0, 0)
+            
+            -- Создаем метку для обнаружения
+            if not ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok") then
+                local detection = Instance.new("Decal")
+                detection.Name = "juisdfj0i32i0eidsuf0iok"
+                detection.Parent = ReplicatedStorage
+            end
+            
+            -- Функция флинга
+            local function fling()
+                local hrp, c, vel, movel = nil, nil, nil, 0.1
+                local lp = Players.LocalPlayer
+                
+                while true do
+                    RunService.Heartbeat:Wait()
+                    if hiddenfling and touchStarted then
+                        while hiddenfling and not (c and c.Parent and hrp and hrp.Parent) do
+                            RunService.Heartbeat:Wait()
+                            c = lp.Character
+                            hrp = c and c:FindFirstChild("HumanoidRootPart")
+                        end
+                        
+                        if hiddenfling and touchStarted then
+                            vel = hrp.Velocity
+                            
+                            -- Рассчитываем направление на основе позиции касания
+                            local direction = (touchPosition - Vector2.new(0.5, 0.5)) * 2
+                            hrp.Velocity = vel * 10000 + Vector3.new(direction.X * 10000, 10000, direction.Y * 10000)
+                            
+                            RunService.RenderStepped:Wait()
+                            if c and c.Parent and hrp and hrp.Parent then
+                                hrp.Velocity = vel
+                            end
+                            
+                            RunService.Stepped:Wait()
+                            if c and c.Parent and hrp and hrp.Parent then
+                                hrp.Velocity = vel + Vector3.new(direction.X * movel, movel, direction.Y * movel)
+                                movel = movel * -1
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Обработчики касаний для мобильных устройств
+            if UserInputService.TouchEnabled then
+                UserInputService.TouchStarted:Connect(function(touch, gameProcessed)
+                    if not gameProcessed and hiddenfling then
+                        touchStarted = true
+                        touchPosition = touch.Position
+                    end
+                end)
+                
+                UserInputService.TouchEnded:Connect(function()
+                    touchStarted = false
+                end)
+                
+                UserInputService.TouchMoved:Connect(function(touch, gameProcessed)
+                    if not gameProcessed and hiddenfling then
+                        touchPosition = touch.Position
+                    end
+                end)
+            else
+                -- Обработчики для ПК (используем мышь)
+                UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 and not gameProcessed and hiddenfling then
+                        touchStarted = true
+                        touchPosition = input.Position
+                    end
+                end)
+                
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        touchStarted = false
+                    end
+                end)
+                
+                UserInputService.InputChanged:Connect(function(input, gameProcessed)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement and not gameProcessed and hiddenfling then
+                        touchPosition = input.Position
+                    end
+                end)
+            end
+            
+            -- Запускаем флинг в отдельном потоке
+            coroutine.wrap(fling)()
+            
+            -- Создаем интерфейс для переключения
+            local toggleFrame = Instance.new("Frame")
+            toggleFrame.Name = "TouchFlingToggle"
+            toggleFrame.Size = UDim2.new(0, 100, 0, 40)
+            toggleFrame.Position = UDim2.new(0.5, -50, 0, 10)
+            toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            toggleFrame.BorderSizePixel = 0
+            toggleFrame.Active = true
+            toggleFrame.Draggable = true
+            toggleFrame.Parent = game:GetService("CoreGui"):FindFirstChild("RobloxGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+            
+            local toggleButton = Instance.new("TextButton")
+            toggleButton.Name = "ToggleButton"
+            toggleButton.Size = UDim2.new(1, 0, 1, 0)
+            toggleButton.Text = "OFF"
+            toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            toggleButton.BackgroundTransparency = 0.5
+            toggleButton.Font = Enum.Font.SourceSansBold
+            toggleButton.TextSize = 14
+            toggleButton.Parent = toggleFrame
+            
+            toggleButton.MouseButton1Click:Connect(function()
+                hiddenfling = not hiddenfling
+                if hiddenfling then
+                    toggleButton.Text = "ON"
+                    toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                else
+                    toggleButton.Text = "OFF"
+                    toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                end
+            end)
+            
+            Rayfield:Notify({
+                Title = "Touch Fling Activated",
+                Content = "Press the Q button to enable/disable",
+                Duration = 5,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Touch Fling is already running!",
+                Duration = 3,
+                Image = 7733658504
+            })
+        end
+    end
+})
