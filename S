@@ -1447,11 +1447,9 @@ EspTab:CreateToggle({
     end
 })
 
-local Toggle = MiscTab:CreateToggle({
-   Name = "Touch Fling",
-   CurrentValue = false,
-   Flag = "Toggle22211", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
+local Button = Tab:CreateButton({
+   Name = "Button Example",
+   Callback = function()
         -- Проверяем, не существует ли уже флинг-скрипта
         if not _G.TouchFlingScript then
             -- Создаем новый скрипт для Touch Fling
@@ -1586,7 +1584,7 @@ local Toggle = MiscTab:CreateToggle({
             
             Rayfield:Notify({
                 Title = "Touch Fling Activated",
-                Content = "Press the Q button to enable/disable",
+                Content = "Press the button to enable/disable",
                 Duration = 5,
                 Image = 4483362458
             })
