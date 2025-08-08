@@ -982,138 +982,182 @@ TeleportTab:CreateButton({
     end
 })
 
-local function SHubFling(TargetPlayer)
-    if not (Character and Humanoid and RootPart) then return end
+-- Improved Fling Function for MM2
+local function SkidFling(TargetPlayer)
+    if not (Character and Humanoid and RootPart) then 
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Character not found",
+            Duration = 3,
+            Image = 7733658504
+        })
+        return 
+    end
+    
     local TCharacter = TargetPlayer.Character
-    if not TCharacter then return end
+    if not TCharacter then 
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Target has no character",
+            Duration = 3,
+            Image = 7733658504
+        })
+        return 
+    end
+    
     local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
     local TRootPart = THumanoid and THumanoid.RootPart
     local THead = TCharacter:FindFirstChild("Head")
     local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
     local Handle = Accessory and Accessory:FindFirstChild("Handle")
     
-    getgenv().OldPos = RootPart.CFrame
-    Workspace.CurrentCamera.CameraSubject = THead or Handle or THumanoid
+    if RootPart.Velocity.Magnitude < 50 then
+        getgenv().OldPos = RootPart.CFrame
+    end
     
+    if THumanoid and THumanoid.Sit then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Target is sitting",
+            Duration = 3,
+            Image = 7733658504
+        })
+        return
+    end
+    
+    -- Set camera to target
+    if THead then
+        workspace.CurrentCamera.CameraSubject = THead
+    elseif Handle then
+        workspace.CurrentCamera.CameraSubject = Handle
+    else
+        workspace.CurrentCamera.CameraSubject = THumanoid
+    end
+    
+    if not TCharacter:FindFirstChildWhichIsA("BasePart") then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "No valid target parts found",
+            Duration = 3,
+            Image = 7733658504
+        })
+        return
+    end
+
     local function FPos(BasePart, Pos, Ang)
-        local targetCF = CFrame.new(BasePart.Position) * Pos * Ang
-        RootPart.CFrame = targetCF
-        Character:SetPrimaryPartCFrame(targetCF)
-        RootPart.Velocity = Vector3.new(9e7, 9e8, 9e7)
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+        RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
         RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
     end
-    
+
     local function SFBasePart(BasePart)
-        local start = tick()
-        local angle = 0
-        getgenv().timeout = getgenv().timeout or 2.5
-        
+        local TimeToWait = 2
+        local Time = tick()
+        local Angle = 0
+
         repeat
             if RootPart and THumanoid then
-                angle += 100
-                for _, offset in ipairs{
-                    CFrame.new(0, 1.5, 0),
-                    CFrame.new(0, -1.5, 0),
-                    CFrame.new(2.25, 1.5, -2.25),
-                    CFrame.new(-2.25, -1.5, 2.25)
-                } do
-                    FPos(BasePart, offset + THumanoid.MoveDirection, CFrame.Angles(math.rad(angle), 0, 0))
+                if BasePart.Velocity.Magnitude < 50 then
+                    Angle = Angle + 100
+
+                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(2.25, 1.5, -2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(-2.25, -1.5, 2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection,CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection,CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                else
+                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, -TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(0, 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
+                    task.wait()
+
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
                     task.wait()
                 end
+            else
+                break
             end
-        until BasePart.Velocity.Magnitude > 500 or tick() - start > getgenv().timeout
+        until BasePart.Velocity.Magnitude > 500 or BasePart.Parent ~= TargetPlayer.Character or TargetPlayer.Parent ~= Players or not TargetPlayer.Character == TCharacter or THumanoid.Sit or Humanoid.Health <= 0 or tick() > Time + TimeToWait
     end
-    
+
+    workspace.FallenPartsDestroyHeight = 0/0
+
     local BV = Instance.new("BodyVelocity")
-    BV.Name = "FlingVelocity"
-    BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
-    BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    BV.Name = "EpixVel"
     BV.Parent = RootPart
-    
+    BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
+    BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-    local target = TRootPart or THead or Handle
-    if target then SFBasePart(target) end
-    
+
+    if TRootPart and THead then
+        if (TRootPart.CFrame.p - THead.CFrame.p).Magnitude > 5 then
+            SFBasePart(THead)
+        else
+            SFBasePart(TRootPart)
+        end
+    elseif TRootPart and not THead then
+        SFBasePart(TRootPart)
+    elseif not TRootPart and THead then
+        SFBasePart(THead)
+    elseif not TRootPart and not THead and Accessory and Handle then
+        SFBasePart(Handle)
+    end
+
     BV:Destroy()
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-    Workspace.CurrentCamera.CameraSubject = Humanoid
-    
+    workspace.CurrentCamera.CameraSubject = Humanoid
+
     repeat
-        local cf = getgenv().OldPos * CFrame.new(0, .5, 0)
-        RootPart.CFrame = cf
-        Character:SetPrimaryPartCFrame(cf)
+        RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+        Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
         Humanoid:ChangeState("GettingUp")
-        
-        for _, part in ipairs(Character:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.Velocity, part.RotVelocity = Vector3.zero, Vector3.zero
+        table.foreach(Character:GetChildren(), function(_, x)
+            if x:IsA("BasePart") then
+                x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new()
             end
-        end
+        end)
         task.wait()
     until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
+    workspace.FallenPartsDestroyHeight = getgenv().FPDH
 end
 
-MiscTab:CreateButton({
-   Name = "Fling Murderer",
-   Callback = function()
-        local Murderer = nil
-        for plr, role in getRoles() do
-            if role == "Murderer" then
-                Murderer = Players:FindFirstChild(plr)
-                break
-            end
-        end
-        
-        if Murderer and Murderer ~= LocalPlayer then
-            SHubFling(Murderer)
-            Rayfield:Notify({
-                Title = "Flinging Murderer",
-                Content = Murderer.Name,
-                Duration = 2,
-                Image = 4483362458
-            })
-        else
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "No murderer found",
-                Duration = 2,
-                Image = 7733658504
-            })
-        end
-    end
-})
-
-MiscTab:CreateButton({
-   Name = "Fling Sheriff/Hero",
-   Callback = function()
-        local Target = nil
-        for plr, role in getRoles() do
-            if role == "Sheriff" or role == "Hero" then
-                Target = Players:FindFirstChild(plr)
-                break
-            end
-        end
-        
-        if Target and Target ~= LocalPlayer then
-            SHubFling(Target)
-            Rayfield:Notify({
-                Title = "Flinging Sheriff/Hero",
-                Content = Target.Name,
-                Duration = 2,
-                Image = 4483362458
-            })
-        else
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "No sheriff/hero found",
-                Duration = 2,
-                Image = 7733658504
-            })
-        end
-    end
-})
-
--- Player Selection
+-- Player selection dropdown for flinging
 local playerList = {}
 local selectedPlayer = nil
 
@@ -1148,16 +1192,17 @@ Players.PlayerRemoving:Connect(function()
     PlayerDropdown:Refresh(playerList)
 end)
 
+-- Fling buttons in MiscTab
 MiscTab:CreateButton({
    Name = "Fling Selected Player",
    Callback = function()
         if selectedPlayer then
             local player = Players:FindFirstChild(selectedPlayer)
             if player and player ~= LocalPlayer then
-                SHubFling(player)
+                SkidFling(player)
                 Rayfield:Notify({
                     Title = "Flinging Player",
-                    Content = player.Name,
+                    Content = "Flinging "..player.Name,
                     Duration = 2,
                     Image = 4483362458
                 })
@@ -1173,6 +1218,66 @@ MiscTab:CreateButton({
             Rayfield:Notify({
                 Title = "Error",
                 Content = "No player selected",
+                Duration = 2,
+                Image = 7733658504
+            })
+        end
+    end
+})
+
+MiscTab:CreateButton({
+   Name = "Fling Murderer",
+   Callback = function()
+        local Murderer = nil
+        for plr, role in getRoles() do
+            if role == "Murderer" then
+                Murderer = Players:FindFirstChild(plr)
+                break
+            end
+        end
+        
+        if Murderer and Murderer ~= LocalPlayer then
+            SkidFling(Murderer)
+            Rayfield:Notify({
+                Title = "Flinging Murderer",
+                Content = "Flinging "..Murderer.Name,
+                Duration = 2,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No murderer found",
+                Duration = 2,
+                Image = 7733658504
+            })
+        end
+    end
+})
+
+MiscTab:CreateButton({
+   Name = "Fling Sheriff/Hero",
+   Callback = function()
+        local Target = nil
+        for plr, role in getRoles() do
+            if role == "Sheriff" or role == "Hero" then
+                Target = Players:FindFirstChild(plr)
+                break
+            end
+        end
+        
+        if Target and Target ~= LocalPlayer then
+            SkidFling(Target)
+            Rayfield:Notify({
+                Title = "Flinging Sheriff/Hero",
+                Content = "Flinging "..Target.Name,
+                Duration = 2,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No sheriff/hero found",
                 Duration = 2,
                 Image = 7733658504
             })
