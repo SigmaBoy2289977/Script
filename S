@@ -544,35 +544,6 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
-local ValueSpeed = 16
-local OldSpeed = Game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
-local Slider = PlayerTab:CreateSlider({
-   Name = "Player Speed",
-   Range = {0, 100},
-   Increment = 1,
-   Suffix = "Speeds",
-   CurrentValue = 16,
-   Flag = "Slider1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-CurrentValue = Value
-ValueSpeed = Value
-end,  ValueSpeed = CurrentValue,
-})
-local PlayerActiveModifyingSpeedToggle = PlayerTab:CreateToggle({
-   Name = "Active Modifying Player Speed",
-   CurrentValue = false,
-   Flag = "ButtonSpeed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-  ActiveSpeedBoost = Value task.spawn(function()
-while ActiveSpeedBoost do
-Game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = ValueSpeed
-task.wait(0.1)
-end
-Game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = OldSpeed
-end)
-end,
-})
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
@@ -713,18 +684,62 @@ EspTab:CreateToggle({
    end
 })
 
--- Player Tab Functions with persistence after reset/teleport
+getgenv().PlayerSettings = {
+    WalkSpeed = 16,
+    JumpPower = 50,
+    InfiniteJump = false,
+    Noclip = false,
+    Fly = false,
+    FlySpeed = 1,
+    Godmode = false
+}
 
--- Walk Speed
-local ValueSpeed = 16
-local OldSpeed = Game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
-
-local function updateSpeed()
-    if ActiveSpeedBoost and Character and Humanoid then
-        Humanoid.WalkSpeed = ValueSpeed
+-- Функция для применения всех настроек к новому персонажу
+local function ApplyPlayerSettings()
+    if not LocalPlayer.Character then return end
+    
+    -- Ждем пока персонаж полностью загрузится
+    local humanoid = LocalPlayer.Character:WaitForChildOfClass("Humanoid")
+    local rootPart = humanoid.RootPart or LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+    
+    -- Применяем настройки скорости
+    humanoid.WalkSpeed = getgenv().PlayerSettings.WalkSpeed
+    humanoid.JumpPower = getgenv().PlayerSettings.JumpPower
+    
+    -- Восстанавливаем Infinite Jump
+    if getgenv().PlayerSettings.InfiniteJump then
+        UserInputService.JumpRequest:Connect(function()
+            if getgenv().PlayerSettings.InfiniteJump and LocalPlayer.Character and humanoid then
+                humanoid:ChangeState("Jumping")
+            end
+        end)
+    end
+    
+    -- Восстанавливаем Noclip
+    if getgenv().PlayerSettings.Noclip then
+        setupNoclip() -- Используем уже существующую функцию
+    end
+    
+    -- Восстанавливаем Fly
+    if getgenv().PlayerSettings.Fly then
+        if UserInputService.TouchEnabled then
+            MobileFly()
+        else
+            NOFLY()
+            wait()
+            sFLY()
+        end
+    end
+    
+    -- Восстанавливаем Godmode
+    if getgenv().PlayerSettings.Godmode then
+        setupGodmode() -- Используем уже существующую функцию
     end
 end
 
+-- Модифицируем существующие функции для сохранения настроек
+
+-- Walk Speed
 local Slider = PlayerTab:CreateSlider({
    Name = "Player Speed",
    Range = {0, 100},
@@ -733,29 +748,30 @@ local Slider = PlayerTab:CreateSlider({
    CurrentValue = 16,
    Flag = "Slider1",
    Callback = function(Value)
-        ValueSpeed = Value
-        updateSpeed()
+        getgenv().PlayerSettings.WalkSpeed = Value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
+        end
    end
 })
 
-local ActiveSpeedBoost = false
 local PlayerActiveModifyingSpeedToggle = PlayerTab:CreateToggle({
    Name = "Active Modifying Player Speed",
    CurrentValue = false,
    Flag = "ButtonSpeed",
    Callback = function(Value)
-        ActiveSpeedBoost = Value
-        updateSpeed()
+        getgenv().PlayerSettings.WalkSpeedActive = Value
+        if Value then
+            game:GetService("RunService").Heartbeat:Connect(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSettings.WalkSpeed
+                end
+            end)
+        end
    end
 })
 
 -- Jump Power
-local function updateJumpPower()
-    if Character and Humanoid then
-        Humanoid.JumpPower = getgenv().Jumppower or 50
-    end
-end
-
 local JumpPowerSlider = PlayerTab:CreateSlider({
    Name = "JumpPower",
    Range = {50, 500},
@@ -764,137 +780,89 @@ local JumpPowerSlider = PlayerTab:CreateSlider({
    CurrentValue = 50,
    Flag = "JumpPower",
    Callback = function(Value)
-        getgenv().Jumppower = Value
-        updateJumpPower()
+        getgenv().PlayerSettings.JumpPower = Value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").JumpPower = Value
+        end
    end
 })
 
 -- Infinite Jump
-local function setupInfiniteJump()
-    if getgenv().InfiniteJump and Character and Humanoid then
-        UserInputService.JumpRequest:Connect(function()
-            if getgenv().InfiniteJump and Character and Humanoid then
-                Humanoid:ChangeState("Jumping")
-            end
-        end)
-    end
-end
-
 PlayerTab:CreateToggle({
    Name = "Infinity Jump",
    CurrentValue = false,
    Flag = "InfJump",
    Callback = function(Value)
-        getgenv().InfiniteJump = Value
-        setupInfiniteJump()
+        getgenv().PlayerSettings.InfiniteJump = Value
+        if Value then
+            UserInputService.JumpRequest:Connect(function()
+                if getgenv().PlayerSettings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        end
    end
 })
 
 -- Noclip
-local noclipLoop
-local function setupNoclip()
-    if noclipLoop then
-        noclipLoop:Disconnect()
-    end
-    
-    if not getgenv().Noclip or not Character then return end
-    
-    noclipLoop = game:GetService("RunService").Stepped:Connect(function()
-        if not getgenv().Noclip or not Character then
-            noclipLoop:Disconnect()
-            return
-        end
-        
-        for _, part in pairs(Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end)
-end
-
 PlayerTab:CreateToggle({
    Name = "Noclip",
    CurrentValue = false,
    Flag = "Noclip",
    Callback = function(Value)
-        getgenv().Noclip = Value
-        setupNoclip()
+        getgenv().PlayerSettings.Noclip = Value
+        setupNoclip() -- Используем существующую функцию
    end
 })
 
--- Godmode (Improved Version)
-local invincibleHealth = 1e9 -- A very high health value to simulate invincibility
-local godmodeConnections = {}
-
-local function setupGodmode()
-    -- Disconnect previous connections if any
-    if godmodeConnections[LocalPlayer] then
-        for _, conn in pairs(godmodeConnections[LocalPlayer]) do
-            conn:Disconnect()
+-- Fly
+PlayerTab:CreateToggle({
+   Name = "Fly",
+   CurrentValue = false,
+   Flag = "ButtonFly",
+   Callback = function(Value)
+        getgenv().PlayerSettings.Fly = Value
+        if Value then
+            if UserInputService.TouchEnabled then
+                MobileFly()
+            else
+                NOFLY()
+                wait()
+                sFLY()
+            end
+        else
+            if UserInputService.TouchEnabled then
+                UnMobileFly()
+            else
+                NOFLY()
+            end
         end
-        godmodeConnections[LocalPlayer] = nil
-    end
+   end
+})
 
-    if not getgenv().enableGodmode or not Character then return end
-
-    local function onCharacterAdded(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        humanoid.MaxHealth = invincibleHealth
-        humanoid.Health = invincibleHealth
-
-        -- Store connections for this player
-        godmodeConnections[LocalPlayer] = {}
-
-        -- Prevent health from changing
-        table.insert(godmodeConnections[LocalPlayer], humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-            if humanoid.Health < invincibleHealth then
-                humanoid.Health = invincibleHealth
-            end
-        end))
-
-        -- Also monitor for damage
-        table.insert(godmodeConnections[LocalPlayer], humanoid.HealthChanged:Connect(function()
-            if humanoid.Health < invincibleHealth then
-                humanoid.Health = invincibleHealth
-            end
-        end))
-    end
-
-    -- Apply immediately if character exists
-    if Character then
-        onCharacterAdded(Character)
-    end
-
-    -- Connect for future characters
-    table.insert(godmodeConnections[LocalPlayer], LocalPlayer.CharacterAdded:Connect(onCharacterAdded))
-end
-
+-- Godmode
 PlayerTab:CreateToggle({
    Name = "Godmode",
    CurrentValue = false,
    Flag = "Godmode",
    Callback = function(Value)
-        getgenv().enableGodmode = Value
-        setupGodmode()
-        
-        if Value then
-            Rayfield:Notify({
-                Title = "Godmode Activated",
-                Content = "You are now invincible!",
-                Duration = 3,
-                Image = 4483362458
-            })
-        else
-            Rayfield:Notify({
-                Title = "Godmode Deactivated",
-                Content = "You are no longer invincible",
-                Duration = 3,
-                Image = 7733658504
-            })
-        end
+        getgenv().PlayerSettings.Godmode = Value
+        setupGodmode() -- Используем существующую функцию
    end
 })
+
+-- Обработчик изменения персонажа
+LocalPlayer.CharacterAdded:Connect(function(character)
+    -- Ждем пока персонаж полностью загрузится
+    task.wait(0.5)
+    ApplyPlayerSettings()
+end)
+
+-- Применяем настройки при первом запуске
+task.spawn(function()
+    task.wait(2) -- Даем время для загрузки
+    ApplyPlayerSettings()
+end)
 
 -- Character change handlers
 local function onCharacterAdded(newChar)
@@ -1156,74 +1124,6 @@ local function SkidFling(TargetPlayer)
     until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
     workspace.FallenPartsDestroyHeight = getgenv().FPDH
 end
-
--- Player selection dropdown for flinging
-local playerList = {}
-local selectedPlayer = nil
-
-local function updatePlayerList()
-    playerList = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(playerList, player.Name)
-        end
-    end
-end
-
-updatePlayerList()
-
-local PlayerDropdown = MiscTab:CreateDropdown({
-   Name = "Select Player",
-   Options = playerList,
-   CurrentOption = "",
-   Flag = "PlayerSelect",
-   Callback = function(Option)
-        selectedPlayer = Option
-    end
-})
-
-Players.PlayerAdded:Connect(function()
-    updatePlayerList()
-    PlayerDropdown:Refresh(playerList)
-end)
-
-Players.PlayerRemoving:Connect(function()
-    updatePlayerList()
-    PlayerDropdown:Refresh(playerList)
-end)
-
--- Fling buttons in MiscTab
-MiscTab:CreateButton({
-   Name = "Fling Selected Player",
-   Callback = function()
-        if selectedPlayer then
-            local player = Players:FindFirstChild(selectedPlayer)
-            if player and player ~= LocalPlayer then
-                SkidFling(player)
-                Rayfield:Notify({
-                    Title = "Flinging Player",
-                    Content = "Flinging "..player.Name,
-                    Duration = 2,
-                    Image = 4483362458
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Player not found",
-                    Duration = 2,
-                    Image = 7733658504
-                })
-            end
-        else
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "No player selected",
-                Duration = 2,
-                Image = 7733658504
-            })
-        end
-    end
-})
 
 MiscTab:CreateButton({
    Name = "Fling Murderer",
