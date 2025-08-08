@@ -836,31 +836,6 @@ PlayerTab:CreateToggle({
    end
 })
 
--- Fly
-PlayerTab:CreateToggle({
-   Name = "Fly",
-   CurrentValue = false,
-   Flag = "ButtonFly",
-   Callback = function(Value)
-        getgenv().PlayerSettings.Fly = Value
-        if Value then
-            if UserInputService.TouchEnabled then
-                MobileFly()
-            else
-                NOFLY()
-                wait()
-                sFLY()
-            end
-        else
-            if UserInputService.TouchEnabled then
-                UnMobileFly()
-            else
-                NOFLY()
-            end
-        end
-   end
-})
-
 -- Godmode
 PlayerTab:CreateToggle({
    Name = "Godmode",
